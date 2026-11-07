@@ -1,0 +1,25 @@
+# Environnement Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Secrets et configuration locale
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Modèles IA locaux (limité à la racine pour conserver backend/models/)
+/models/*
+!/models/.gitkeep
+*.gguf
+
+# IDE et système
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+data/qdrant/

@@ -1,0 +1,56 @@
+{
+  "transports": [
+    {
+      "reference": "BT-7781", "etat": 30, "client": "Moyen Atlas Boissons", "immatriculation": "65432-A-20", "chauffeur": "Rachid Alaoui",
+      "villeDepart": "Meknès", "villeArrivee": "Béni Mellal",
+      "departPrevu": "07/11/2026 05:00", "arriveePrevue": "07/11/2026 08:30",
+      "departReel": "07/11/2026 05:00", "arriveeReelle": "07/11/2026 08:25", "arriveeEstimee": null,
+      "itinerairePrevu": ["33.89,-5.55", "32.94,-5.67", "32.34,-6.36"],
+      "dernierePosition": "32.34,-6.36", "dateDernierePosition": "07/11/2026 08:25", "dateMaj": "07/11/2026 08:27"
+    },
+    {
+      "reference": "BT-7782", "etat": 20, "client": "Doukkala Primeurs", "immatriculation": "76543-B-27", "chauffeur": "Nadia Chraibi",
+      "villeDepart": "Safi", "villeArrivee": "El Jadida",
+      "departPrevu": "07/11/2026 07:30", "arriveePrevue": "07/11/2026 10:15",
+      "departReel": "07/11/2026 08:10", "arriveeReelle": null, "arriveeEstimee": "07/11/2026 11:50",
+      "itinerairePrevu": ["32.30,-9.24", "32.73,-9.03", "33.23,-8.50"],
+      "dernierePosition": "32.73,-9.03", "dateDernierePosition": "07/11/2026 10:35", "dateMaj": "07/11/2026 10:36"
+    },
+    {
+      "reference": "BT-7783", "etat": 40, "client": "Rif Froid", "immatriculation": "87654-D-52", "chauffeur": "Omar Idrissi",
+      "villeDepart": "Nador", "villeArrivee": "Al Hoceïma",
+      "departPrevu": "07/11/2026 08:00", "arriveePrevue": "07/11/2026 09:45",
+      "departReel": "07/11/2026 08:02", "arriveeReelle": null, "arriveeEstimee": null,
+      "itinerairePrevu": ["35.17,-2.93", "34.98,-3.38", "35.25,-3.93"],
+      "dernierePosition": "34.98,-3.38", "dateDernierePosition": "07/11/2026 08:50", "dateMaj": "07/11/2026 08:55"
+    },
+    {
+      "reference": "BT-7784", "etat": 20, "client": "Chaouia Équipement", "immatriculation": "98765-H-6", "chauffeur": "Leila Berrada",
+      "villeDepart": "Casablanca", "villeArrivee": "Marrakech",
+      "departPrevu": "07/11/2026 09:00", "arriveePrevue": "07/11/2026 10:30",
+      "departReel": "07/11/2026 09:04", "arriveeReelle": null, "arriveeEstimee": "07/11/2026 11:20",
+      "itinerairePrevu": ["33.57,-7.59", "33.00,-7.62", "31.63,-8.01"],
+      "dernierePosition": "32.34,-6.36", "dateDernierePosition": "07/11/2026 10:20", "dateMaj": "07/11/2026 10:21"
+    },
+    {
+      "reference": "BT-7785", "etat": 20, "client": "Drâa Hôtellerie", "immatriculation": "19876-J-48", "chauffeur": null,
+      "villeDepart": "Ouarzazate", "villeArrivee": "Errachidia",
+      "departPrevu": "07/11/2026 06:30", "arriveePrevue": "07/11/2026 08:30",
+      "departReel": null, "arriveeReelle": null, "arriveeEstimee": null,
+      "itinerairePrevu": ["30.92,-6.90", "31.93,-4.42"],
+      "dernierePosition": null, "dateDernierePosition": null, "dateMaj": "07/11/2026 06:05"
+    }
+  ],
+  "jalons": [
+    { "idJalon": "J-1", "referenceTransport": "BT-7781", "code": "DEPART", "date": "07/11/2026 05:00", "commentaire": "Départ de Meknès" },
+    { "idJalon": "J-2", "referenceTransport": "BT-7781", "code": "LIVRAISON", "date": "07/11/2026 08:25", "commentaire": "Livré, signature du client reçue" },
+    { "idJalon": "J-3", "referenceTransport": "BT-7782", "code": "DEPART", "date": "07/11/2026 08:10", "commentaire": "Départ de Safi après une attente au quai" },
+    { "idJalon": "J-4", "referenceTransport": "BT-7783", "code": "DEPART", "date": "07/11/2026 08:02", "commentaire": "Départ de Nador" },
+    { "idJalon": "J-5", "referenceTransport": "BT-7783", "code": "ARRET", "date": "07/11/2026 08:50", "commentaire": "Arrêt sur une aire près de Driouch" },
+    { "idJalon": "J-6", "referenceTransport": "BT-7784", "code": "DEPART", "date": "07/11/2026 09:04", "commentaire": "Départ de Casablanca" }
+  ],
+  "anomalies": [
+    { "idAnomalie": "ANO-31", "referenceTransport": "BT-7781", "code": "QUAI_INDISPONIBLE", "gravite": 1, "libelle": "Quai occupé à l'arrivée, attente de quelques minutes", "dateOuverture": "07/11/2026 08:10", "dateCloture": "07/11/2026 08:20" },
+    { "idAnomalie": "ANO-32", "referenceTransport": "BT-7783", "code": "PANNE_FROID", "gravite": 3, "libelle": "Panne du groupe frigorifique, température de la marchandise à surveiller", "dateOuverture": "07/11/2026 08:52", "dateCloture": null }
+  ]
+}

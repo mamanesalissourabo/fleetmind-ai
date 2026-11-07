@@ -1,0 +1,68 @@
+{
+  "missions": [
+    {
+      "mission_id": "AL-1001", "status": "DELIVERED", "customer_name": "Atlas Distribution", "vehicle_plate": "12345-A-6",
+      "driver": { "name": "Youssef El Amrani", "phone": "+212600000001" },
+      "origin": { "city": "Casablanca", "lat": 33.57, "lon": -7.59 },
+      "destination": { "city": "Tanger", "lat": 35.76, "lon": -5.83 },
+      "planned_departure": "2026-11-07T04:00:00Z", "planned_arrival": "2026-11-07T09:30:00Z",
+      "actual_departure": "2026-11-07T04:05:00Z", "actual_arrival": "2026-11-07T09:22:00Z",
+      "planned_route": [{ "lat": 33.57, "lon": -7.59 }, { "lat": 34.02, "lon": -6.84 }, { "lat": 35.76, "lon": -5.83 }],
+      "last_position": { "lat": 35.76, "lon": -5.83, "recorded_at": "2026-11-07T09:22:00Z" },
+      "updated_at": "2026-11-07T09:25:00Z"
+    },
+    {
+      "mission_id": "AL-1002", "status": "IN_TRANSIT", "customer_name": "Haouz Frais", "vehicle_plate": "23456-B-1",
+      "driver": { "name": "Fatima Zahra Bennani", "phone": "+212600000002" },
+      "origin": { "city": "Marrakech", "lat": 31.63, "lon": -8.01 },
+      "destination": { "city": "Casablanca", "lat": 33.57, "lon": -7.59 },
+      "planned_departure": "2026-11-07T07:00:00Z", "planned_arrival": "2026-11-07T11:00:00Z",
+      "actual_departure": "2026-11-07T07:50:00Z", "estimated_arrival": "2026-11-07T12:30:00Z",
+      "planned_route": [{ "lat": 31.63, "lon": -8.01 }, { "lat": 33.0, "lon": -7.62 }, { "lat": 33.57, "lon": -7.59 }],
+      "last_position": { "lat": 33.0, "lon": -7.62, "recorded_at": "2026-11-07T10:40:00Z" },
+      "updated_at": "2026-11-07T10:41:00Z"
+    },
+    {
+      "mission_id": "AL-1003", "status": "ON_HOLD", "customer_name": "Saïss Matériaux", "vehicle_plate": "34567-D-15",
+      "driver": { "name": "Hamid Ouazzani", "phone": "+212600000003" },
+      "origin": { "city": "Fès", "lat": 34.03, "lon": -5.0 },
+      "destination": { "city": "Oujda", "lat": 34.68, "lon": -1.91 },
+      "planned_departure": "2026-11-07T08:00:00Z", "planned_arrival": "2026-11-07T10:45:00Z",
+      "actual_departure": "2026-11-07T08:02:00Z",
+      "planned_route": [{ "lat": 34.03, "lon": -5.0 }, { "lat": 34.21, "lon": -4.01 }, { "lat": 34.68, "lon": -1.91 }],
+      "last_position": { "lat": 34.21, "lon": -4.01, "recorded_at": "2026-11-07T09:15:00Z" },
+      "updated_at": "2026-11-07T09:20:00Z"
+    },
+    {
+      "mission_id": "AL-1004", "status": "IN_TRANSIT", "customer_name": "Détroit Logistique", "vehicle_plate": "45678-H-40",
+      "driver": { "name": "Salma Tazi", "phone": "+212600000004" },
+      "origin": { "city": "Rabat", "lat": 34.02, "lon": -6.84 },
+      "destination": { "city": "Tanger", "lat": 35.76, "lon": -5.83 },
+      "planned_departure": "2026-11-07T09:00:00Z", "planned_arrival": "2026-11-07T12:00:00Z",
+      "actual_departure": "2026-11-07T09:03:00Z", "estimated_arrival": "2026-11-07T12:40:00Z",
+      "planned_route": [{ "lat": 34.02, "lon": -6.84 }, { "lat": 34.26, "lon": -6.58 }, { "lat": 35.19, "lon": -6.16 }, { "lat": 35.76, "lon": -5.83 }],
+      "last_position": { "lat": 33.89, "lon": -5.55, "recorded_at": "2026-11-07T10:30:00Z" },
+      "updated_at": "2026-11-07T10:31:00Z"
+    },
+    {
+      "mission_id": "AL-1005", "status": "IN_TRANSIT", "customer_name": "Souss Pièces Auto", "vehicle_plate": "56789-J-33",
+      "origin": { "city": "Agadir", "lat": 30.43, "lon": -9.6 },
+      "destination": { "city": "Essaouira", "lat": 31.51, "lon": -9.77 },
+      "planned_departure": "2026-11-07T06:30:00Z", "planned_arrival": "2026-11-07T08:30:00Z",
+      "planned_route": [{ "lat": 30.43, "lon": -9.6 }, { "lat": 31.51, "lon": -9.77 }],
+      "updated_at": "2026-11-07T06:10:00Z"
+    }
+  ],
+  "events": [
+    { "event_id": "EV-1", "mission_id": "AL-1001", "type": "DEPARTED", "occurred_at": "2026-11-07T04:05:00Z", "description": "Departed from Casablanca" },
+    { "event_id": "EV-2", "mission_id": "AL-1001", "type": "DELIVERED", "occurred_at": "2026-11-07T09:22:00Z", "description": "Delivered, signed by the customer" },
+    { "event_id": "EV-3", "mission_id": "AL-1002", "type": "DEPARTED", "occurred_at": "2026-11-07T07:50:00Z", "description": "Departed from Marrakech after a late loading" },
+    { "event_id": "EV-4", "mission_id": "AL-1003", "type": "DEPARTED", "occurred_at": "2026-11-07T08:02:00Z", "description": "Departed from Fes" },
+    { "event_id": "EV-5", "mission_id": "AL-1003", "type": "STOPPED", "occurred_at": "2026-11-07T09:15:00Z", "description": "Vehicle stopped on the road shoulder near Taza" },
+    { "event_id": "EV-6", "mission_id": "AL-1004", "type": "DEPARTED", "occurred_at": "2026-11-07T09:03:00Z", "description": "Departed from Rabat" }
+  ],
+  "incidents": [
+    { "incident_id": "INC-501", "mission_id": "AL-1001", "type": "DOCUMENT_ISSUE", "severity": "LOW", "status": "RESOLVED", "description": "Delivery note missing at loading, reissued", "opened_at": "2026-11-07T03:50:00Z", "resolved_at": "2026-11-07T04:02:00Z" },
+    { "incident_id": "INC-502", "mission_id": "AL-1003", "type": "BREAKDOWN", "severity": "HIGH", "status": "OPEN", "description": "Engine failure, towing requested", "opened_at": "2026-11-07T09:18:00Z" }
+  ]
+}

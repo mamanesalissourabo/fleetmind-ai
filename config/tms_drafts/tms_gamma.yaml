@@ -1,0 +1,150 @@
+# BROUILLON généré le 07/11/2026 13:28 : à relire avant toute activation.
+# Aucune anomalie détectée automatiquement.
+id: tms_gamma
+name: TMS Gamma
+config_version: 1
+base_url: http://127.0.0.1:8103
+timeout_seconds: 10.0
+polling_interval_seconds: 300
+auth:
+  type: api_key
+  header: X-Gamma-Token
+  key_env: MOCK_GAMMA_API_KEY
+pagination:
+  type: page
+  page_param: page
+  size_param: per_page
+  page_size: 25
+  total_path: meta.count
+resources:
+  missions:
+    path: /api/shipments
+    items_path: items
+    paginated: true
+    mapping:
+      external_id:
+        transform: text
+        path: ref
+      status:
+        transform: enum
+        path: state
+        values:
+          SCHEDULED: PLANNED
+          ON_ROAD: IN_TRANSIT
+          COMPLETED: DELIVERED
+          STUCK: BLOCKED
+          ABORTED: CANCELLED
+        default: UNKNOWN
+      customer_name:
+        transform: text
+        path: shipper
+      vehicle_plate:
+        transform: text
+        path: truck
+      driver_name:
+        transform: text
+        path: operator
+      origin_city:
+        transform: text
+        path: start.town
+      planned_departure:
+        transform: datetime
+        path: schedule.pickup_at
+        format: iso8601
+      planned_arrival:
+        transform: datetime
+        path: schedule.dropoff_at
+        format: iso8601
+      actual_departure:
+        transform: datetime
+        path: execution.picked_up_at
+        format: iso8601
+      actual_arrival:
+        transform: datetime
+        path: execution.dropped_off_at
+        format: iso8601
+      estimated_arrival:
+        transform: datetime
+        path: schedule.eta
+        format: iso8601
+      planned_route:
+        transform: geo
+        path: waypoints
+        format: object
+        lat_key: latitude
+        lon_key: longitude
+      last_position:
+        transform: geo
+        path: gps
+        format: object
+        lat_key: latitude
+        lon_key: longitude
+      last_position_at:
+        transform: datetime
+        path: gps_time
+        format: iso8601
+      updated_at:
+        transform: datetime
+        path: modified_at
+        format: iso8601
+      destination_city:
+        transform: text
+        path: end.town
+  events:
+    path: /api/shipments/{mission_id}/history
+    paginated: false
+    mapping:
+      external_id:
+        transform: text
+        path: uid
+      mission_external_id:
+        transform: text
+        path: shipment_ref
+      type:
+        transform: enum
+        path: kind
+        values:
+          LEFT_SITE: DEPARTED
+          HALTED: STOPPED
+          DROPPED_OFF: DELIVERED
+        default: UNKNOWN
+      occurred_at:
+        transform: datetime
+        path: at
+        format: iso8601
+      description:
+        transform: text
+        path: label
+  incidents:
+    path: /api/issues
+    items_path: items
+    paginated: true
+    mapping:
+      external_id:
+        transform: text
+        path: code
+      mission_external_id:
+        transform: text
+        path: shipment_ref
+      type:
+        transform: text
+        path: category
+      severity:
+        transform: enum
+        path: level
+        values:
+          MINOR: LOW
+          MAJOR: MEDIUM
+          CRITICAL: HIGH
+        default: UNKNOWN
+      description:
+        transform: text
+        path: summary
+      opened_at:
+        transform: datetime
+        path: raised_at
+        format: iso8601
+      resolved_at:
+        transform: datetime
+        path: closed_at
+        format: iso8601

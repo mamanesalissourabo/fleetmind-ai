@@ -1,0 +1,72 @@
+# Description du TMS Alpha : à modifier ici, jamais dans le code.
+id: tms_alpha
+name: TMS Alpha
+config_version: 1
+base_url: http://127.0.0.1:8101
+polling_interval_seconds: 60
+
+auth:
+  type: api_key
+  header: X-API-Key
+  key_env: MOCK_ALPHA_API_KEY
+
+pagination:
+  type: page
+  page_param: page
+  size_param: page_size
+  page_size: 100
+  total_path: pagination.total
+
+resources:
+  missions:
+    path: /api/v1/missions
+    items_path: data
+    mapping:
+      external_id: mission_id
+      status:
+        transform: enum
+        path: status
+        values: { PLANNED: PLANNED, IN_TRANSIT: IN_TRANSIT, DELIVERED: DELIVERED, ON_HOLD: BLOCKED, CANCELLED: CANCELLED }
+      customer_name: customer_name
+      vehicle_plate: vehicle_plate
+      driver_name: driver.name
+      origin_city: origin.city
+      destination_city: destination.city
+      planned_departure: { transform: datetime, path: planned_departure }
+      planned_arrival: { transform: datetime, path: planned_arrival }
+      actual_departure: { transform: datetime, path: actual_departure }
+      actual_arrival: { transform: datetime, path: actual_arrival }
+      estimated_arrival: { transform: datetime, path: estimated_arrival }
+      planned_route: { transform: geo, path: planned_route, format: object }
+      last_position: { transform: geo, path: last_position, format: object }
+      last_position_at: { transform: datetime, path: last_position.recorded_at }
+      updated_at: { transform: datetime, path: updated_at }
+
+  events:
+    path: /api/v1/missions/{mission_id}/events
+    items_path: data
+    paginated: false
+    mapping:
+      external_id: event_id
+      mission_external_id: mission_id
+      type:
+        transform: enum
+        path: type
+        values: { DEPARTED: DEPARTED, STOPPED: STOPPED, DELIVERED: DELIVERED }
+      occurred_at: { transform: datetime, path: occurred_at }
+      description: description
+
+  incidents:
+    path: /api/v1/incidents
+    items_path: data
+    mapping:
+      external_id: incident_id
+      mission_external_id: mission_id
+      type: type
+      severity:
+        transform: enum
+        path: severity
+        values: { LOW: LOW, MEDIUM: MEDIUM, HIGH: HIGH }
+      description: description
+      opened_at: { transform: datetime, path: opened_at }
+      resolved_at: { transform: datetime, path: resolved_at }

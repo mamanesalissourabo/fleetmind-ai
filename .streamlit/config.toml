@@ -1,0 +1,7 @@
+# L'interface reste locale : aucune statistique d'usage n'est envoyée à l'extérieur.
+[browser]
+gatherUsageStats = false
+
+[server]
+address = "127.0.0.1"
+headless = true

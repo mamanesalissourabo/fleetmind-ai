@@ -1,0 +1,24 @@
+# Règles de DÉMONSTRATION du TMS Beta, à remplacer par les règles métier réelles.
+tms_id: tms_beta
+version: 1
+origin: demonstration
+
+rules:
+  - { id: beta-estimated-delay, type: estimated_delay, severity: MEDIUM, statuses: [IN_TRANSIT], min_delay_minutes: 60 }
+  - { id: beta-overdue-arrival, type: overdue_arrival, severity: HIGH, statuses: [IN_TRANSIT, BLOCKED], grace_minutes: 45 }
+  - { id: beta-route-deviation, type: route_deviation, severity: MEDIUM, statuses: [IN_TRANSIT], max_distance_km: 50 }
+  - { id: beta-missing-information, type: missing_information, severity: MEDIUM, statuses: [IN_TRANSIT], fields: [driver_name, last_position] }
+  - { id: beta-stale-data, type: stale_data, severity: HIGH, statuses: [IN_TRANSIT], max_age_minutes: 45 }
+  - { id: beta-open-incident, type: open_incident, min_severity: HIGH }
+
+notifications:
+  min_severity: HIGH
+  recipients: [exploitation-beta]
+  reminder_interval_minutes: 20
+  max_reminders: 3
+  escalations:
+    - { after_minutes: 45, recipient: responsable-exploitation-beta }
+
+# Sujet de procédure à rechercher pour chaque code d'incident de ce TMS.
+incident_procedure_topics:
+  PANNE_FROID: panne du groupe frigorifique

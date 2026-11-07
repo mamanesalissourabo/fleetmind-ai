@@ -1,0 +1,75 @@
+# Description du TMS Beta : à modifier ici, jamais dans le code.
+id: tms_beta
+name: TMS Beta
+config_version: 2
+base_url: http://127.0.0.1:8102
+polling_interval_seconds: 120
+
+auth:
+  type: token
+  token_path: /auth/token
+  credentials_env:
+    clientId: MOCK_BETA_CLIENT_ID
+    clientSecret: MOCK_BETA_CLIENT_SECRET
+  token_field: jeton
+  expires_in_field: expireDans
+
+pagination:
+  type: offset
+  offset_param: offset
+  limit_param: limit
+  page_size: 50
+  total_path: total
+
+resources:
+  missions:
+    path: /v2/transports
+    items_path: resultats
+    mapping:
+      external_id: reference
+      status:
+        transform: enum
+        path: etat
+        values: { "10": PLANNED, "20": IN_TRANSIT, "30": DELIVERED, "40": BLOCKED, "90": CANCELLED }
+      customer_name: client
+      vehicle_plate: immatriculation
+      driver_name: chauffeur
+      origin_city: villeDepart
+      destination_city: villeArrivee
+      planned_departure: { transform: datetime, path: departPrevu, format: "%d/%m/%Y %H:%M", timezone: Africa/Casablanca }
+      planned_arrival: { transform: datetime, path: arriveePrevue, format: "%d/%m/%Y %H:%M", timezone: Africa/Casablanca }
+      actual_departure: { transform: datetime, path: departReel, format: "%d/%m/%Y %H:%M", timezone: Africa/Casablanca }
+      actual_arrival: { transform: datetime, path: arriveeReelle, format: "%d/%m/%Y %H:%M", timezone: Africa/Casablanca }
+      estimated_arrival: { transform: datetime, path: arriveeEstimee, format: "%d/%m/%Y %H:%M", timezone: Africa/Casablanca }
+      planned_route: { transform: geo, path: itinerairePrevu, format: string }
+      last_position: { transform: geo, path: dernierePosition, format: string }
+      last_position_at: { transform: datetime, path: dateDernierePosition, format: "%d/%m/%Y %H:%M", timezone: Africa/Casablanca }
+      updated_at: { transform: datetime, path: dateMaj, format: "%d/%m/%Y %H:%M", timezone: Africa/Casablanca }
+
+  events:
+    path: /v2/transports/{mission_id}/suivi
+    paginated: false
+    mapping:
+      external_id: idJalon
+      mission_external_id: referenceTransport
+      type:
+        transform: enum
+        path: code
+        values: { DEPART: DEPARTED, ARRET: STOPPED, LIVRAISON: DELIVERED }
+      occurred_at: { transform: datetime, path: date, format: "%d/%m/%Y %H:%M", timezone: Africa/Casablanca }
+      description: commentaire
+
+  incidents:
+    path: /v2/anomalies
+    items_path: resultats
+    mapping:
+      external_id: idAnomalie
+      mission_external_id: referenceTransport
+      type: code
+      severity:
+        transform: enum
+        path: gravite
+        values: { "1": LOW, "2": MEDIUM, "3": HIGH }
+      description: libelle
+      opened_at: { transform: datetime, path: dateOuverture, format: "%d/%m/%Y %H:%M", timezone: Africa/Casablanca }
+      resolved_at: { transform: datetime, path: dateCloture, format: "%d/%m/%Y %H:%M", timezone: Africa/Casablanca }

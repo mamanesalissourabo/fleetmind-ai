@@ -1,0 +1,25 @@
+# Règles de DÉMONSTRATION du TMS Alpha, à remplacer par les règles métier réelles.
+tms_id: tms_alpha
+version: 1
+origin: demonstration
+
+rules:
+  - { id: alpha-estimated-delay, type: estimated_delay, severity: MEDIUM, statuses: [IN_TRANSIT], min_delay_minutes: 30 }
+  - { id: alpha-overdue-arrival, type: overdue_arrival, severity: HIGH, statuses: [IN_TRANSIT, BLOCKED], grace_minutes: 15 }
+  - { id: alpha-route-deviation, type: route_deviation, severity: HIGH, statuses: [IN_TRANSIT], max_distance_km: 30 }
+  - { id: alpha-missing-information, type: missing_information, severity: MEDIUM, statuses: [IN_TRANSIT], fields: [driver_name, last_position, estimated_arrival] }
+  - { id: alpha-stale-data, type: stale_data, severity: MEDIUM, statuses: [IN_TRANSIT], max_age_minutes: 60 }
+  - { id: alpha-open-incident, type: open_incident, min_severity: MEDIUM }
+
+notifications:
+  min_severity: MEDIUM
+  recipients: [exploitation-alpha]
+  reminder_interval_minutes: 30
+  max_reminders: 2
+  escalations:
+    - { after_minutes: 60, recipient: responsable-exploitation-alpha }
+    - { after_minutes: 120, recipient: direction-alpha }
+
+# Sujet de procédure à rechercher pour chaque code d'incident de ce TMS.
+incident_procedure_topics:
+  BREAKDOWN: panne de véhicule

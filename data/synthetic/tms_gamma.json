@@ -1,0 +1,40 @@
+{
+  "shipments": [
+    {
+      "ref": "GM-301", "state": "COMPLETED", "shipper": "Oriental Céréales", "truck": "11111-A-12", "operator": "Driss Lahlou",
+      "start": { "town": "Oujda" }, "end": { "town": "Nador" },
+      "schedule": { "pickup_at": "2026-11-07T06:00:00+00:00", "dropoff_at": "2026-11-07T08:30:00+00:00" },
+      "execution": { "picked_up_at": "2026-11-07T06:05:00+00:00", "dropped_off_at": "2026-11-07T08:20:00+00:00" },
+      "waypoints": [{ "latitude": 34.68, "longitude": -1.91 }, { "latitude": 35.17, "longitude": -2.93 }],
+      "gps": { "latitude": 35.17, "longitude": -2.93 }, "gps_time": "2026-11-07T08:20:00+00:00",
+      "modified_at": "2026-11-07T08:21:00+00:00"
+    },
+    {
+      "ref": "GM-302", "state": "ON_ROAD", "shipper": "Tadla Agrumes", "truck": "22222-B-23", "operator": "Hind Skalli",
+      "start": { "town": "Béni Mellal" }, "end": { "town": "Rabat" },
+      "schedule": { "pickup_at": "2026-11-07T07:00:00+00:00", "dropoff_at": "2026-11-07T11:00:00+00:00", "eta": "2026-11-07T12:15:00+00:00" },
+      "execution": { "picked_up_at": "2026-11-07T07:40:00+00:00" },
+      "waypoints": [{ "latitude": 32.34, "longitude": -6.36 }, { "latitude": 33.0, "longitude": -6.8 }, { "latitude": 34.02, "longitude": -6.84 }],
+      "gps": { "latitude": 33.0, "longitude": -6.8 }, "gps_time": "2026-11-07T10:30:00+00:00",
+      "modified_at": "2026-11-07T10:31:00+00:00"
+    },
+    {
+      "ref": "GM-303", "state": "STUCK", "shipper": "Sahara Matériaux", "truck": "33333-D-49", "operator": "Brahim Naciri",
+      "start": { "town": "Laâyoune" }, "end": { "town": "Dakhla" },
+      "schedule": { "pickup_at": "2026-11-07T05:00:00+00:00", "dropoff_at": "2026-11-07T10:00:00+00:00" },
+      "execution": { "picked_up_at": "2026-11-07T05:02:00+00:00" },
+      "waypoints": [{ "latitude": 27.15, "longitude": -13.2 }, { "latitude": 23.68, "longitude": -15.96 }],
+      "gps": { "latitude": 25.5, "longitude": -14.8 }, "gps_time": "2026-11-07T08:00:00+00:00",
+      "modified_at": "2026-11-07T08:05:00+00:00"
+    }
+  ],
+  "history": [
+    { "uid": "H-1", "shipment_ref": "GM-301", "kind": "LEFT_SITE", "at": "2026-11-07T06:05:00+00:00", "label": "Départ d'Oujda" },
+    { "uid": "H-2", "shipment_ref": "GM-301", "kind": "DROPPED_OFF", "at": "2026-11-07T08:20:00+00:00", "label": "Livré à Nador" },
+    { "uid": "H-3", "shipment_ref": "GM-303", "kind": "HALTED", "at": "2026-11-07T08:00:00+00:00", "label": "Arrêt sur la route de Dakhla" }
+  ],
+  "issues": [
+    { "code": "IS-1", "shipment_ref": "GM-303", "category": "ENGINE", "level": "CRITICAL", "summary": "Panne moteur", "raised_at": "2026-11-07T08:03:00+00:00" },
+    { "code": "IS-2", "shipment_ref": "GM-301", "category": "PAPERWORK", "level": "MINOR", "summary": "Bon de livraison retrouvé", "raised_at": "2026-11-07T05:50:00+00:00", "closed_at": "2026-11-07T06:00:00+00:00" }
+  ]
+}
