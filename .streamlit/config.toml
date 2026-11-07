@@ -5,3 +5,5 @@ gatherUsageStats = false
 [server]
 address = "127.0.0.1"
 headless = true
+# Évite le message « File change » : relancer Streamlit après une modification du code.
+fileWatcherType = "none"

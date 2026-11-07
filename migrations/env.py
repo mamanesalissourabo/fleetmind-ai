@@ -6,7 +6,7 @@ from alembic import context
 from sqlalchemy import create_engine
 
 from backend.core.config import get_settings
-from backend.models import alert, chat_log, monitoring_run, user  # noqa: F401  (enregistre les tables)
+from backend.models import alert, chat_log, conversation, monitoring_run, user  # noqa: F401  (enregistre les tables)
 from backend.models.base import Base
 
 if context.config.config_file_name:

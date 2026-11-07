@@ -35,8 +35,9 @@ from backend.schemas.tms_config import TmsConfig
 
 UNSUPPORTED_MESSAGE = (
     "Je peux consulter les incidents ouverts, les alertes actives, le bilan des missions, les "
-    "retards et les informations manquantes, expliquer une alerte et faire un point de "
-    "situation. Je ne modifie aucune donnée et je n'envoie aucun message."
+    "retards et les informations manquantes, estimer les risques de retard, expliquer une alerte, "
+    "faire un point de situation et retrouver une procédure. Je ne modifie aucune donnée et je "
+    "n'envoie aucun message."
 )
 CLARIFY_PERIOD_MESSAGE = (
     "Je n'ai pas compris la période demandée. Précisez-la, par exemple « cette semaine », "

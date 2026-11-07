@@ -21,7 +21,7 @@ from backend.schemas.auth import Role
 from backend.services.auth import create_user
 from frontend import api_client
 from frontend.api_client import ApiError, FleetMindApi
-from frontend.formatting import format_time, sort_alerts
+from frontend.formatting import describe_sources, format_time, sort_alerts
 from tests.helpers import client_for
 from tests.test_chatbot import T0, FakeLlm, factory, no_retriever  # noqa: F401
 
@@ -73,7 +73,7 @@ def logged_in(username: str, page_name: str) -> AppTest:
     page.text_input[1].set_value(PASSWORD)
     next(b for b in page.button if b.label == "Se connecter").click().run()
     assert not page.exception and not page.error
-    page.sidebar.radio[0].set_value(page_name).run()
+    next(b for b in page.sidebar.button if b.label == page_name).click().run()
     assert not page.exception
     return page
 
@@ -83,7 +83,7 @@ def test_nothing_is_visible_before_login(monkeypatch, factory) -> None:  # noqa:
 
     page = AppTest.from_file(APP_FILE, default_timeout=30).run()
 
-    assert not page.sidebar.radio
+    assert not page.sidebar.button
     assert [t.label for t in page.text_input] == ["Identifiant", "Mot de passe"]
 
 
@@ -96,7 +96,7 @@ def test_wrong_password_shows_a_neutral_message(monkeypatch, factory) -> None:  
     next(b for b in page.button if b.label == "Se connecter").click().run()
 
     assert any("Identifiant ou mot de passe incorrect" in e.value for e in page.error)
-    assert not page.sidebar.radio
+    assert not page.sidebar.button
 
 
 def test_dashboard_without_cycle_warns_instead_of_reassuring(monkeypatch, factory) -> None:  # noqa: F811
@@ -170,7 +170,9 @@ def test_chat_shows_summary_facts_and_its_origin(monkeypatch, factory) -> None: 
     text = " ".join(m.value for m in page.markdown)
     assert "INC-502 touche AL-1003" in text
     assert "**Faits**" in text
-    assert any("rédigé par le LLM local" in c.value for c in page.caption)
+    assert any("Résumé généré par l'IA" in c.value for c in page.caption)
+    assert any(c.value.startswith("Sources : TMS Alpha, consulté") for c in page.caption)
+    assert page.expander[0].label == "Voir le détail" and not page.expander[0].proto.expanded
 
 
 def test_backend_down_gives_a_clear_message(monkeypatch) -> None:
@@ -217,3 +219,173 @@ def test_sidebar_keeps_description_on_top_and_logout_in_its_footer(monkeypatch, 
     assert "Agent d'exploitation local" in page.sidebar.caption[0].value
     assert "fatima" in page.sidebar.caption[1].value
     assert page.sidebar.button[-1].label == "Se déconnecter"
+
+
+def test_sidebar_footer_cannot_cover_the_page() -> None:
+    style = Path(APP_FILE).read_text(encoding="utf-8")
+
+    assert "width: 15rem !important" in style
+
+
+def test_active_page_is_highlighted_in_the_navigation(monkeypatch, factory) -> None:  # noqa: F811
+    connect(monkeypatch, factory)
+
+    page = logged_in("fatima", "Missions")
+
+    kinds = {b.label: b.proto.type for b in page.sidebar.button if b.label in ("Missions", "Alertes")}
+    assert kinds["Missions"] == "primary" and kinds["Alertes"] == "tertiary"
+    assert page.title[0].value == "Missions"
+
+
+def test_code_summary_has_no_ai_mention(monkeypatch, factory) -> None:  # noqa: F811
+    llm = FakeLlm({"intent": "situation_briefing", "tms_id": None, "period": "none"})
+    connect(monkeypatch, factory, llm)
+    page = logged_in("fatima", "Chatbot")
+
+    page.chat_input[0].set_value("Que traiter en priorité ?").run()
+
+    assert not page.exception
+    assert not any("généré par l'IA" in c.value for c in page.caption)
+
+
+def test_missing_information_stays_visible_outside_the_details() -> None:
+    answer = {
+        "answered": True, "summary": "Résumé", "summary_source": "deterministic", "intent": "delayed_missions",
+        "scope": [], "facts": [], "risks": [], "sources": [], "period": None,
+        "missing_information": [{"text": "Mission AL-1 : position absente"}],
+    }
+
+    def script(answer):
+        from frontend.views import render_answer
+
+        render_answer(answer)
+
+    page = AppTest.from_function(script, kwargs={"answer": answer}, default_timeout=30).run()
+
+    assert any("position absente" in m.value for m in page.markdown)
+    assert not page.expander
+
+
+def test_sources_are_readable_and_use_the_oldest_time() -> None:
+    scope = [
+        {"tms_id": "tms_alpha", "available": True, "data_as_of": "2026-11-07T16:08:00Z"},
+        {"tms_id": "tms_beta", "available": True, "data_as_of": "2026-11-07T16:03:00Z"},
+        {"tms_id": "tms_gamma", "available": False, "data_as_of": None},
+    ]
+    now = datetime(2026, 11, 7, 17, 0, tzinfo=UTC)
+
+    assert describe_sources(scope, now) == "Sources : TMS Alpha et TMS Beta, consultés à 16 h 03."
+    later = datetime(2026, 11, 9, 8, 0, tzinfo=UTC)
+    assert "le 07/11/2026 à 16 h 03" in describe_sources(scope, later)
+
+
+def incidents_llm(*summaries: str) -> FakeLlm:
+    responses: list[dict] = []
+    for summary in summaries:
+        responses += [{"intent": "open_incidents", "tms_id": "tms_alpha", "period": "none"}, {"synthese": summary}]
+    return FakeLlm(*responses)
+
+
+def chat_buttons(page: AppTest) -> list[str]:
+    return [b.label for b in page.sidebar.button if b.key and b.key.startswith("chat-")]
+
+
+def test_chat_is_saved_and_new_chat_starts_an_empty_one(monkeypatch, factory) -> None:  # noqa: F811
+    connect(monkeypatch, factory, incidents_llm("INC-502 touche AL-1003.", "AL-1003 et INC-502 encore."))
+    page = logged_in("fatima", "Chatbot")
+
+    page.chat_input[0].set_value("Première question").run()
+    assert chat_buttons(page) == ["Première question"]
+    assert len(page.chat_message) == 2
+
+    next(b for b in page.sidebar.button if b.label == "Nouveau chat").click().run()
+    assert len(page.chat_message) == 0
+
+    page.chat_input[0].set_value("Deuxième question").run()
+    assert chat_buttons(page) == ["Deuxième question", "Première question"]
+
+
+def test_old_conversation_can_be_reopened_and_continued(monkeypatch, factory) -> None:  # noqa: F811
+    llm = incidents_llm("INC-502 touche AL-1003.", "AL-1003 et INC-502 encore.", "INC-502, AL-1003 toujours.")
+    connect(monkeypatch, factory, llm)
+    page = logged_in("fatima", "Chatbot")
+    page.chat_input[0].set_value("Première question").run()
+    next(b for b in page.sidebar.button if b.label == "Nouveau chat").click().run()
+    page.chat_input[0].set_value("Deuxième question").run()
+
+    next(b for b in page.sidebar.button if b.label == "Première question").click().run()
+    assert "Première question" in " ".join(m.value for m in page.markdown)
+
+    page.chat_input[0].set_value("Suite de la première").run()
+    assert chat_buttons(page) == ["Première question", "Deuxième question"]
+    assert len(page.chat_message) == 4
+
+
+def test_conversations_survive_a_new_login(monkeypatch, factory) -> None:  # noqa: F811
+    connect(monkeypatch, factory, incidents_llm("INC-502 touche AL-1003."))
+    page = logged_in("fatima", "Chatbot")
+    page.chat_input[0].set_value("Première question").run()
+
+    assert chat_buttons(logged_in("fatima", "Chatbot")) == ["Première question"]
+
+
+def test_other_account_does_not_see_the_conversations(monkeypatch, factory) -> None:  # noqa: F811
+    connect(monkeypatch, factory, incidents_llm("INC-502 touche AL-1003."))
+    page = logged_in("fatima", "Chatbot")
+    page.chat_input[0].set_value("Question privée").run()
+
+    assert chat_buttons(logged_in("direction", "Chatbot")) == []
+
+
+def test_conversation_list_is_only_on_the_chatbot_page(monkeypatch, factory) -> None:  # noqa: F811
+    connect(monkeypatch, factory)
+
+    assert "Nouveau chat" not in {b.label for b in logged_in("fatima", "Alertes").sidebar.button}
+
+
+def test_chat_example_does_not_cite_a_tms_outside_the_scope(monkeypatch, factory) -> None:  # noqa: F811
+    connect(monkeypatch, factory)
+
+    placeholder = logged_in("direction", "Chatbot").chat_input[0].placeholder
+
+    assert "Alpha" not in placeholder and "Beta" not in placeholder
+
+
+def delete_buttons(page: AppTest) -> list:
+    return [b for b in page.sidebar.button if b.key and b.key.startswith("delete-")]
+
+
+def test_deleting_a_conversation_asks_for_confirmation(monkeypatch, factory) -> None:  # noqa: F811
+    connect(monkeypatch, factory, incidents_llm("INC-502 touche AL-1003.", "AL-1003 et INC-502 encore."))
+    page = logged_in("fatima", "Chatbot")
+    page.chat_input[0].set_value("À garder").run()
+    next(b for b in page.sidebar.button if b.label == "Nouveau chat").click().run()
+    page.chat_input[0].set_value("À supprimer").run()
+    assert len(page.chat_message) == 2
+
+    delete_buttons(page)[0].click().run()
+    assert chat_buttons(page) == ["À supprimer", "À garder"]
+
+    next(b for b in page.sidebar.button if b.label == "Annuler").click().run()
+    assert chat_buttons(page) == ["À supprimer", "À garder"]
+
+    delete_buttons(page)[0].click().run()
+    next(b for b in page.sidebar.button if b.label == "Supprimer").click().run()
+
+    assert not page.exception
+    assert chat_buttons(page) == ["À garder"]
+    assert len(page.chat_message) == 0
+
+
+def test_deleting_another_conversation_keeps_the_open_one(monkeypatch, factory) -> None:  # noqa: F811
+    connect(monkeypatch, factory, incidents_llm("INC-502 touche AL-1003.", "AL-1003 et INC-502 encore."))
+    page = logged_in("fatima", "Chatbot")
+    page.chat_input[0].set_value("Ancienne").run()
+    next(b for b in page.sidebar.button if b.label == "Nouveau chat").click().run()
+    page.chat_input[0].set_value("Ouverte").run()
+
+    delete_buttons(page)[1].click().run()
+    next(b for b in page.sidebar.button if b.label == "Supprimer").click().run()
+
+    assert chat_buttons(page) == ["Ouverte"]
+    assert len(page.chat_message) == 2

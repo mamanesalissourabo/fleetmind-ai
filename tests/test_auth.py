@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from backend.agents.orchestrator import build_llm_client
@@ -17,6 +17,7 @@ from backend.core.clock import Clock
 from backend.core.database import get_session
 from backend.models.alert import Alert
 from backend.models.chat_log import ChatLog
+from backend.models.conversation import ConversationMessage
 from backend.models.user import AuthSession, User
 from backend.schemas.auth import Role
 from backend.services.auth import create_user, login
@@ -318,3 +319,57 @@ def test_user_without_valid_tms_cannot_use_the_chatbot(factory) -> None:  # noqa
     response = client.post("/chatbot/ask", json={"question": "Bonjour"}, headers=headers_for(client, "vide"))
 
     assert response.status_code == 403
+
+
+def test_conversation_of_another_account_looks_like_it_does_not_exist(world) -> None:
+    factory, _ = world
+    llm = FakeLlm(
+        {"intent": "unsupported", "tms_id": None, "period": "none"},
+        {"intent": "unsupported", "tms_id": None, "period": "none"},
+    )
+    client = build(factory, llm)
+    owner, other = headers_for(client, "alpha-op"), headers_for(client, "alpha-boss")
+
+    conversation_id = client.post(
+        "/chatbot/ask", json={"question": "Secret"}, headers=owner
+    ).json()["conversation_id"]
+
+    assert client.get(f"/chatbot/conversations/{conversation_id}", headers=other).status_code == 404
+    calls_before = llm.calls
+    written = client.post(
+        "/chatbot/ask", json={"question": "Intrusion", "conversation_id": conversation_id}, headers=other
+    )
+    assert written.status_code == 404 and llm.calls == calls_before
+    assert client.get("/chatbot/conversations", headers=other).json() == []
+    messages = client.get(f"/chatbot/conversations/{conversation_id}", headers=owner).json()["messages"]
+    assert [m["question"] for m in messages] == ["Secret"]
+
+
+def test_explanation_from_the_alert_page_creates_no_conversation(world) -> None:
+    factory, _ = world
+    client = build(factory, FakeLlm({"intent": "unsupported", "tms_id": None, "period": "none"}))
+    headers = headers_for(client, "alpha-op")
+
+    body = client.post("/chatbot/ask", json={"question": "Explique", "save": False}, headers=headers).json()
+
+    assert body["conversation_id"] is None
+    assert client.get("/chatbot/conversations", headers=headers).json() == []
+
+
+def test_only_the_owner_can_delete_a_conversation_and_audit_trace_remains(world) -> None:
+    factory, _ = world
+    client = build(factory, FakeLlm({"intent": "unsupported", "tms_id": None, "period": "none"}))
+    owner, other = headers_for(client, "alpha-op"), headers_for(client, "alpha-boss")
+    conversation_id = client.post("/chatbot/ask", json={"question": "Secret"}, headers=owner).json()["conversation_id"]
+    url = f"/chatbot/conversations/{conversation_id}"
+
+    assert client.delete(url).status_code == 401
+    assert client.delete(url, headers=other).status_code == 404
+    assert client.get(url, headers=owner).status_code == 200
+
+    assert client.delete(url, headers=owner).status_code == 204
+    assert client.get(url, headers=owner).status_code == 404
+    assert client.get("/chatbot/conversations", headers=owner).json() == []
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(ConversationMessage)) == 0
+        assert session.scalars(select(ChatLog)).one().question == "Secret"

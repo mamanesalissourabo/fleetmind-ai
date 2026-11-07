@@ -24,11 +24,34 @@ PAGES = {
     "Missions": render_missions,
     "Chatbot": render_chat,
 }
+PAGE_ICONS = {
+    "Tableau de bord": ":material/dashboard:",
+    "Alertes": ":material/notifications:",
+    "Missions": ":material/local_shipping:",
+    "Chatbot": ":material/smart_toy:",
+}
 ROLE_LABELS = {"executive": "Dirigeant", "operator": "Exploitant", "admin": "Administrateur"}
 SIDEBAR_FOOTER_STYLE = """
 <style>
-.st-key-sidebar-footer { position: fixed; bottom: 1rem; }
+.st-key-sidebar-footer { position: fixed; bottom: 1rem; width: 15rem !important; max-width: 15rem; }
 [data-testid="stSidebarUserContent"] { padding-bottom: 7rem; }
+.st-key-sidebar-nav, .st-key-sidebar-chats { gap: 0.25rem; }
+.st-key-sidebar-nav button, .st-key-sidebar-chats button {
+    justify-content: flex-start; border: none; border-radius: 8px;
+    min-height: 2.5rem; padding: 0.4rem 0.75rem;
+}
+.st-key-sidebar-nav button > div, .st-key-sidebar-chats button > div { justify-content: flex-start; }
+.st-key-sidebar-chats button p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-key-sidebar-nav button[data-testid="stBaseButton-tertiary"]:hover,
+.st-key-sidebar-chats button[data-testid="stBaseButton-tertiary"]:hover {
+    background: rgba(128, 128, 128, 0.12);
+}
+.st-key-sidebar-nav button[data-testid="stBaseButton-primary"],
+.st-key-sidebar-nav button[data-testid="stBaseButton-primary"]:hover,
+.st-key-sidebar-chats button[data-testid="stBaseButton-primary"],
+.st-key-sidebar-chats button[data-testid="stBaseButton-primary"]:hover {
+    background: rgba(37, 99, 235, 0.12); color: #2563eb; font-weight: 600;
+}
 </style>
 """
 
@@ -51,12 +74,24 @@ def render_login() -> None:
     st.rerun()
 
 
+def render_navigation() -> str:
+    """Affiche les liens de navigation et retourne la page active."""
+    current = st.session_state.setdefault("page", next(iter(PAGES)))
+    nav = st.sidebar.container(key="sidebar-nav")
+    for name, icon in PAGE_ICONS.items():
+        kind = "primary" if name == current else "tertiary"
+        if nav.button(name, key=f"nav-{name}", icon=icon, type=kind, width="stretch"):
+            st.session_state["page"] = name
+            st.rerun()
+    return current
+
+
 def render_app(auth: dict) -> None:
     user = auth["user"]
     api = api_client.get_api().with_token(auth["token"])
     st.sidebar.title("FleetMind AI")
-    st.sidebar.caption("Agent d'exploitation local. Données et procédures de démonstration.")
-    page = st.sidebar.radio("Navigation", list(PAGES), label_visibility="collapsed")
+    st.sidebar.caption("Agent d'exploitation local.")
+    page = render_navigation()
     st.markdown(SIDEBAR_FOOTER_STYLE, unsafe_allow_html=True)
     footer = st.sidebar.container(key="sidebar-footer")
     allowed = "tous" if "*" in user["allowed_tms"] else ", ".join(user["allowed_tms"])

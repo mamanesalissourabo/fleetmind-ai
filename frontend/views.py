@@ -4,17 +4,19 @@ from typing import Any
 
 import streamlit as st
 
-from frontend.api_client import ApiError, FleetMindApi
+from frontend.api_client import ApiError, FleetMindApi, SessionExpiredError
 from frontend.formatting import (
     ACTION_LABELS,
     NOT_PROVIDED,
     SEVERITY_LABELS,
     STATUS_LABELS,
     alert_row,
+    describe_sources,
     format_time,
     label,
     mission_row,
     sort_alerts,
+    tms_name,
 )
 
 ROLES_ACTING_ON_ALERTS = ("operator", "admin")
@@ -154,7 +156,7 @@ def _render_alert_detail(api: FleetMindApi, alert_id: int, user: dict[str, Any])
             st.caption("Votre rôle permet de consulter cette alerte, pas de la traiter.")
     if st.button("Expliquer cette alerte", key=f"explain-{alert_id}"):
         with st.spinner("Analyse en cours, cela peut prendre une minute..."):
-            st.session_state[f"analysis-{alert_id}"] = api.ask(f"Explique l'alerte {alert_id}")
+            st.session_state[f"analysis-{alert_id}"] = api.ask(f"Explique l'alerte {alert_id}", save=False)
     analysis = st.session_state.get(f"analysis-{alert_id}")
     if analysis:
         render_answer(analysis)
@@ -218,27 +220,88 @@ def render_chat(api: FleetMindApi, user: dict[str, Any]) -> None:
     )
     allowed = "tous" if "*" in user["allowed_tms"] else ", ".join(user["allowed_tms"])
     st.caption(f"Vos réponses portent uniquement sur vos TMS autorisés : {allowed}.")
-    history = st.session_state.setdefault("chat_history", [])
-    for entry in history:
-        with st.chat_message("user"):
-            st.write(entry["question"])
-        with st.chat_message("assistant"):
-            if entry["answer"]:
-                render_answer(entry["answer"])
-            else:
-                st.error(entry["error"])
+    _render_conversation_list(api)
+    conversation_id = st.session_state.get("conversation_id")
+    if conversation_id is not None:
+        try:
+            messages = api.conversation(conversation_id)["messages"]
+        except SessionExpiredError:
+            raise
+        except ApiError:
+            st.session_state["conversation_id"] = conversation_id = None
+            messages = []
+            st.warning("Cette conversation n'est plus disponible.")
+        for message in messages:
+            with st.chat_message("user"):
+                st.write(message["question"])
+            with st.chat_message("assistant"):
+                render_answer(message["answer"])
 
-    question = st.chat_input("Par exemple : quels sont les incidents non résolus chez Alpha ?")
+    failure = st.session_state.pop("chat_failure", None)
+    if failure:
+        with st.chat_message("user"):
+            st.write(failure["question"])
+        with st.chat_message("assistant"):
+            st.error(failure["error"])
+
+    question = st.chat_input("Par exemple : quels sont les incidents non résolus ?")
     if not question:
         return
-    entry: dict[str, Any] = {"question": question, "answer": None, "error": None}
     with st.spinner("Recherche en cours, cela peut prendre une minute..."):
         try:
-            entry["answer"] = api.ask(question)
+            answer = api.ask(question, conversation_id)
+        except SessionExpiredError:
+            raise
         except ApiError as error:
-            entry["error"] = str(error)
-    history.append(entry)
+            st.session_state["chat_failure"] = {"question": question, "error": str(error)}
+        else:
+            st.session_state["conversation_id"] = answer["conversation_id"]
     st.rerun()
+
+
+def _render_conversation_list(api: FleetMindApi) -> None:
+    """Affiche dans la barre latérale le bouton de nouveau chat et l'historique du compte."""
+    current = st.session_state.get("conversation_id")
+    chats = st.sidebar.container(key="sidebar-chats")
+    chats.divider()
+    if chats.button("Nouveau chat", key="new-chat", icon=":material/add:", type="tertiary", width="stretch"):
+        st.session_state["conversation_id"] = None
+        st.rerun()
+    conversations = api.conversations()
+    if conversations:
+        chats.caption("Conversations")
+    for conversation in conversations:
+        _render_conversation_row(api, chats, conversation, current)
+
+
+def _render_conversation_row(api: FleetMindApi, chats: Any, conversation: dict[str, Any], current: int | None) -> None:
+    """Une ligne par conversation ; la suppression, irréversible, demande une confirmation."""
+    conversation_id = conversation["id"]
+    title_column, delete_column = chats.columns([6, 1], gap="small", vertical_alignment="center")
+    kind = "primary" if conversation_id == current else "tertiary"
+    if title_column.button(conversation["title"], key=f"chat-{conversation_id}", type=kind, width="stretch"):
+        st.session_state["conversation_id"] = conversation_id
+        st.session_state.pop("deleting_conversation", None)
+        st.rerun()
+    if delete_column.button(
+        "", key=f"delete-{conversation_id}", icon=":material/delete:", type="tertiary",
+        help="Supprimer cette conversation",
+    ):
+        st.session_state["deleting_conversation"] = conversation_id
+        st.rerun()
+    if st.session_state.get("deleting_conversation") != conversation_id:
+        return
+    chats.caption("Supprimer définitivement cette conversation ?")
+    confirm_column, cancel_column = chats.columns(2)
+    if confirm_column.button("Supprimer", key=f"confirm-delete-{conversation_id}", width="stretch"):
+        api.delete_conversation(conversation_id)
+        st.session_state.pop("deleting_conversation", None)
+        if conversation_id == current:
+            st.session_state["conversation_id"] = None
+        st.rerun()
+    if cancel_column.button("Annuler", key=f"cancel-delete-{conversation_id}", width="stretch"):
+        st.session_state.pop("deleting_conversation", None)
+        st.rerun()
 
 
 def render_answer(answer: dict[str, Any]) -> None:
@@ -247,21 +310,23 @@ def render_answer(answer: dict[str, Any]) -> None:
         st.info(answer["summary"])
         return
     st.write(answer["summary"])
-    source = "rédigé par le LLM local, puis contrôlé" if answer["summary_source"] == "llm" else "produit par le code"
-    st.caption(f"Résumé {source}. Les éléments détaillés ci-dessous font foi.")
+    if answer["summary_source"] == "llm":
+        st.caption("Résumé généré par l'IA. Consultez les détails ci-dessous en cas de doute.")
 
     for tms in answer["scope"]:
         if not tms["available"]:
-            st.error(f"{tms['tms_id']} : données indisponibles, résultat incomplet.")
-    if answer["scope"]:
-        names = ", ".join(tms["tms_id"] for tms in answer["scope"])
-        fresh = "; ".join(f"{t['tms_id']} : {format_time(t['data_as_of'])}" for t in answer["scope"] if t["available"])
+            st.error(f"{tms_name(tms['tms_id'])} : données indisponibles, résultat incomplet.")
+    sources = describe_sources(answer["scope"])
+    if sources:
         period = f" Période : {answer['period']['label']}." if answer.get("period") else ""
-        st.caption(f"Périmètre : {names}.{period} Fraîcheur : {fresh or NOT_PROVIDED}.")
+        st.caption(sources + period)
 
-    _render_items("Faits", answer["facts"])
-    _render_items("Risques", answer["risks"])
+    # Ce qui manque reste toujours visible : le replier donnerait une fausse certitude.
     _render_items("Informations manquantes", answer["missing_information"])
+    if answer["facts"] or answer["risks"]:
+        with st.expander("Voir le détail", expanded=answer["intent"] == "delay_risk"):
+            _render_items("Faits", answer["facts"])
+            _render_items("Risques", answer["risks"])
 
     if answer.get("draft_message"):
         st.markdown("**Brouillon de relance (non envoyé)**")

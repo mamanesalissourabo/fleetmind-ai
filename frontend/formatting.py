@@ -1,7 +1,9 @@
 """Présentation des données : traductions, dates et ordre d'affichage."""
 
+import os
 from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 STATUS_LABELS = {"OPEN": "Ouverte", "ACKNOWLEDGED": "Prise en charge", "RESOLVED": "Résolue"}
 SEVERITY_LABELS = {"HIGH": "Élevée", "MEDIUM": "Moyenne", "LOW": "Faible", "UNKNOWN": "Inconnue"}
@@ -26,6 +28,30 @@ ACTION_LABELS = {
     "AUTO_RESOLVED": "Résolution automatique",
 }
 NOT_PROVIDED = "Non renseigné"
+DISPLAY_ZONE = ZoneInfo(os.environ.get("BUSINESS_TIMEZONE", "Africa/Casablanca"))
+
+
+def tms_name(tms_id: str) -> str:
+    """Transforme un identifiant technique (tms_alpha) en nom lisible (TMS Alpha)."""
+    words = tms_id.removeprefix("tms_").replace("_", " ").title()
+    return f"TMS {words}"
+
+
+def describe_sources(scope: list[dict[str, Any]], now: datetime | None = None) -> str:
+    """Indique les TMS consultés et l'heure la plus ancienne, pour ne pas surévaluer la fraîcheur."""
+    available = [tms for tms in scope if tms["available"]]
+    if not available:
+        return ""
+    names = [tms_name(tms["tms_id"]) for tms in available]
+    listed = names[0] if len(names) == 1 else f"{', '.join(names[:-1])} et {names[-1]}"
+    verb = "consulté" if len(names) == 1 else "consultés"
+    times = [tms["data_as_of"] for tms in available if tms.get("data_as_of")]
+    if not times:
+        return f"Sources : {listed}, fraîcheur inconnue."
+    oldest = min(datetime.fromisoformat(value) for value in times).astimezone(DISPLAY_ZONE)
+    today = (now or datetime.now(DISPLAY_ZONE)).astimezone(DISPLAY_ZONE).date()
+    day = "" if oldest.date() == today else f"le {oldest:%d/%m/%Y} "
+    return f"Sources : {listed}, {verb} {day}à {oldest:%H} h {oldest:%M}."
 
 
 def format_time(value: str | None) -> str:

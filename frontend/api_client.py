@@ -55,8 +55,20 @@ class FleetMindApi:
     def missions(self) -> list[dict[str, Any]]:
         return self._request("GET", "/missions")
 
-    def ask(self, question: str) -> dict[str, Any]:
-        return self._request("POST", "/chatbot/ask", json={"question": question})
+    def ask(
+        self, question: str, conversation_id: int | None = None, save: bool = True
+    ) -> dict[str, Any]:
+        body = {"question": question, "conversation_id": conversation_id, "save": save}
+        return self._request("POST", "/chatbot/ask", json=body)
+
+    def conversations(self) -> list[dict[str, Any]]:
+        return self._request("GET", "/chatbot/conversations")
+
+    def delete_conversation(self, conversation_id: int) -> None:
+        self._request("DELETE", f"/chatbot/conversations/{conversation_id}")
+
+    def conversation(self, conversation_id: int) -> dict[str, Any]:
+        return self._request("GET", f"/chatbot/conversations/{conversation_id}")
 
     def reindex_documents(self) -> dict[str, Any]:
         return self._request("POST", "/documents/reindex")

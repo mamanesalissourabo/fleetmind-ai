@@ -2,6 +2,7 @@
 
 from datetime import date
 from enum import StrEnum
+from typing import Any
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
@@ -64,6 +65,8 @@ class ChatRequest(BaseModel):
     )
 
     question: str = Field(min_length=1, max_length=500)
+    conversation_id: int | None = None
+    save: bool = True
 
 
 class TmsScope(BaseModel):
@@ -127,6 +130,7 @@ class AgentResult(BaseModel):
 
 
 class ChatResponse(BaseModel):
+    conversation_id: int | None = None
     question: str
     intent: ChatIntent
     answered: bool
@@ -141,3 +145,23 @@ class ChatResponse(BaseModel):
     draft_message: str | None = None
     suggested_recipient: str | None = None
     sources: list[DocumentSource] = []
+
+
+class ConversationRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    updated_at: AwareDatetime
+
+
+class ConversationMessageRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    question: str
+    answer: dict[str, Any]
+    created_at: AwareDatetime
+
+
+class ConversationDetail(ConversationRead):
+    messages: list[ConversationMessageRead]

@@ -410,3 +410,10 @@ def test_cited_month_and_year_inside_period_are_accepted(factory) -> None:
 
     assert body["answered"] is True
     assert len(body["facts"]) == 2
+
+
+def test_refusal_lists_everything_the_chatbot_can_do(factory) -> None:  # noqa: F811
+    body = ask(factory, FakeLlm(intent("unsupported"))).json()
+
+    for capability in ("risques de retard", "procédure", "expliquer une alerte", "point de situation"):
+        assert capability in body["summary"]

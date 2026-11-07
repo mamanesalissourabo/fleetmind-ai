@@ -22,7 +22,11 @@ Agent d'exploitation IA local qui surveille les missions de plusieurs systèmes 
 | 8 | Dossier de conception pour Proorga | Terminé, à relire |
 | 9 | Interface Streamlit | Terminée |
 | 10 | Authentification et droits par TMS | Terminée |
-| 11 | Conteneurisation avec Docker Compose | Reportée |
+
+## À faire plus tard
+
+1. **Mémoire de conversation :** permettre les questions de suite, comme « et chez Beta ? », en reprenant le TMS et la période de la question précédente, sans transmettre tout l'historique au LLM.
+2. **Docker Compose :** conteneuriser le backend, l'interface, PostgreSQL et Ollama. Docker doit d'abord être installé.
 
 ## Journal des étapes
 
@@ -171,7 +175,7 @@ Agent d'exploitation IA local qui surveille les missions de plusieurs systèmes 
   - pas d'authentification : les droits de l'utilisateur demandés par le dossier Proorga ne sont pas encore appliqués ;
   - les périodes portent sur l'arrivée prévue des missions et sur l'ouverture des incidents et alertes ; elles se limitent à ce que le TMS expose encore ;
   - les retards en cours sont évalués à l'heure de référence, y compris dans une période passée ;
-  - pas de mémoire de conversation : chaque question est traitée seule ;
+  - le LLM n'a pas de mémoire de conversation : les échanges sont enregistrés et réaffichés, mais chaque question est traitée seule ;
   - le contrôle détecte les inventions et les oublis, pas une formulation trompeuse : les faits détaillés font foi ;
   - les descriptions venant des TMS sont transmises au LLM telles quelles, y compris dans leur langue d'origine ;
   - au-delà de 12 constats, le résumé est produit par le code.
@@ -288,10 +292,15 @@ Agent d'exploitation IA local qui surveille les missions de plusieurs systèmes 
   - aucune logique métier dans l'interface ;
   - statistiques d'usage de Streamlit désactivées, et écoute limitée à la machine locale ([config.toml](.streamlit/config.toml)) ;
   - une surveillance arrêtée ou en retard est signalée, et n'est jamais présentée comme « aucun problème » ;
-  - l'interface distingue un résumé écrit par le LLM d'un résumé produit par le code.
+  - un résumé écrit par l'IA est signalé comme tel, et non un résumé produit par le code ;
+  - les sources sont en langage courant, avec l'heure de lecture la plus ancienne ;
+  - les détails sont repliés, mais les informations manquantes et les TMS indisponibles restent toujours visibles ;
+  - navigation latérale avec icônes et page active surlignée, compte et déconnexion en bas ;
+  - bouton « Nouveau chat » et conversations enregistrées en base, propres à chaque compte, que chacun peut supprimer après confirmation.
 - **Limites :**
   - pas de rafraîchissement automatique des écrans ;
-  - tests automatisés sur le comportement des écrans, mais aucun contrôle automatique de leur rendu visuel.
+  - tests automatisés sur le comportement des écrans ; le rendu n'est contrôlé qu'à la main, et seuls le tableau de bord et le chatbot l'ont été dans un navigateur ;
+  - surveillance des fichiers désactivée, pour éviter le message « File change » : il faut relancer Streamlit après toute modification de `frontend/`.
 
 ### Étape 10 : authentification et droits par TMS
 
@@ -321,6 +330,7 @@ Agent d'exploitation IA local qui surveille les missions de plusieurs systèmes 
   - pas de chiffrement réseau (HTTPS), à ajouter avant tout déploiement hors de la machine ;
   - la détection d'un TMS interdit dans une question repose sur son nom : une formulation détournée ne donne accès à aucune donnée, mais peut recevoir une autre réponse que le refus ;
   - la route `/docs` reste visible sans connexion, sans donner accès aux données ;
+  - une conversation enregistrée conserve ses réponses, même si les droits du compte sont réduits ensuite ; un compte peut supprimer ses conversations, mais `chat_logs` garde la trace d'audit, sans purge automatique ;
   - le blocage porte sur le compte, ce qui permet à un tiers de le bloquer temporairement.
 
 ## Principes d'architecture
