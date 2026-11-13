@@ -22,11 +22,11 @@ Agent d'exploitation IA local qui surveille les missions de plusieurs systèmes 
 | 8 | Dossier de conception pour Proorga | Terminé, à relire |
 | 9 | Interface Streamlit | Terminée |
 | 10 | Authentification et droits par TMS | Terminée |
+| 11 | Mémoire de conversation | Terminée |
 
 ## À faire plus tard
 
-1. **Mémoire de conversation :** permettre les questions de suite, comme « et chez Beta ? », en reprenant le TMS et la période de la question précédente, sans transmettre tout l'historique au LLM.
-2. **Docker Compose :** conteneuriser le backend, l'interface, PostgreSQL et Ollama. Docker doit d'abord être installé.
+1. **Docker Compose :** conteneuriser le backend, l'interface, PostgreSQL et Ollama. Docker doit d'abord être installé.
 
 ## Journal des étapes
 
@@ -332,6 +332,31 @@ Agent d'exploitation IA local qui surveille les missions de plusieurs systèmes 
   - la route `/docs` reste visible sans connexion, sans donner accès aux données ;
   - une conversation enregistrée conserve ses réponses, même si les droits du compte sont réduits ensuite ; un compte peut supprimer ses conversations, mais `chat_logs` garde la trace d'audit, sans purge automatique ;
   - le blocage porte sur le compte, ce qui permet à un tiers de le bloquer temporairement.
+
+### Étape 11 : mémoire de conversation
+
+- **Réalisé :** questions de suite dans une conversation ([follow_up.py](backend/agents/follow_up.py)). Chaque réponse garde ce qui a été compris (sujet, TMS, période) dans le champ `context`, enregistré avec la conversation, sans nouvelle table.
+- **Questions reconnues :**
+
+| Question | Traitement |
+|---|---|
+| « Et chez Alpha ? », « Et la semaine dernière ? », « Même chose pour tous les TMS » | Sujet repris, seuls le TMS ou la période changent. Le LLM n'est appelé que pour lire des dates précises, comme « en octobre » |
+| « Et les incidents ? » | Le LLM lit le nouveau sujet ; le TMS et la période non cités sont repris |
+| Question sans « et » qui cite un sujet | Nouvelle question, sans reprise |
+
+- **Choix :**
+  - le LLM ne reçoit jamais l'historique : le code reprend le contexte de la dernière réponse seulement ;
+  - ce que cite la question l'emporte toujours sur le contexte ;
+  - rien n'est repris après un refus, une demande de précision, l'explication d'une alerte ou une procédure ;
+  - une demande refusée reste refusée (« et supprime-les ») ;
+  - un TMS cité reste soumis au contrôle des droits, et un contexte qui vise un TMS devenu interdit est ignoré ;
+  - une période n'est pas reprise pour une question sur la situation actuelle (priorités, risques de retard) ;
+  - l'interface affiche ce qui a été repris, par exemple « Suite de la question précédente : sujet « retards », période du 26/10/2026 au 01/11/2026 ».
+- **Vérification avec le vrai modèle :** 3 questions après « retards chez Beta la semaine dernière ». « Et les incidents ? » donne les incidents de Beta sur la même semaine, « Et en octobre ? » les retards de Beta en octobre, et « et supprime-les » est refusé. Environ 5 secondes par question, 61 secondes pour la première, le temps de charger le modèle.
+- **Limites :**
+  - seule la dernière réponse sert de contexte : « et celle d'avant ? » n'est pas compris ;
+  - la reconnaissance repose sur des mots (« et », noms de TMS, expressions de période) : une suite formulée autrement est traitée comme une nouvelle question ;
+  - les conversations enregistrées avant cette étape n'ont pas de contexte : leur dernière réponse n'est pas reprise.
 
 ## Principes d'architecture
 

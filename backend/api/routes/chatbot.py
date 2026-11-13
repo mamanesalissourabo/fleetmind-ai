@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -36,6 +37,7 @@ from backend.schemas.chat import (
     ChatResponse,
     ConversationDetail,
     ConversationRead,
+    Interpretation,
     SummarySource,
 )
 from backend.schemas.tms_config import TmsConfig
@@ -100,7 +102,7 @@ def ask(
         knowledge = KnowledgeAgent(configs, retriever_factory, clock.now, llm)
         orchestrator = ChatOrchestrator(configs, llm, reporting, incident, monitoring, knowledge)
         try:
-            response = orchestrator.ask(request.question, clock.now())
+            response = orchestrator.ask(request.question, clock.now(), _previous_context(conversation))
         except LlmUnavailableError as error:
             raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from error
     session.add(
@@ -132,6 +134,19 @@ def _own_conversation(
     if conversation is None or conversation.username != user.username:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Conversation introuvable")
     return conversation
+
+
+def _previous_context(conversation: Conversation | None) -> Interpretation | None:
+    """Seule la dernière réponse compte ; une réponse plus ancienne ou illisible n'est pas reprise."""
+    if conversation is None or not conversation.messages:
+        return None
+    context = conversation.messages[-1].answer.get("context")
+    if context is None:
+        return None
+    try:
+        return Interpretation.model_validate(context)
+    except ValidationError:
+        return None
 
 
 def _save_exchange(

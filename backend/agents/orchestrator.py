@@ -7,6 +7,14 @@ from typing import TypedDict
 from langgraph.graph import END, START, StateGraph
 from pydantic import ValidationError
 
+from backend.agents.follow_up import (
+    INHERITABLE_INTENTS,
+    FollowUp,
+    classify_follow_up,
+    complete,
+    describe,
+    needs_llm_for_period,
+)
 from backend.agents.incident_agent import IncidentAgent
 from backend.agents.knowledge_agent import KnowledgeAgent
 from backend.agents.llm_client import OllamaClient
@@ -60,6 +68,8 @@ NUMBER_IN_QUESTION = re.compile(r"\d+")
 class ChatState(TypedDict, total=False):
     question: str
     reference_time: datetime
+    previous: Interpretation | None
+    follow_up: FollowUp
     interpretation: Interpretation
     period: ReportPeriod | None
     clarification: str
@@ -194,9 +204,15 @@ class ChatOrchestrator:
         graph.add_edge("knowledge", END)
         self._graph = graph.compile()
 
-    def ask(self, question: str, reference_time: datetime) -> ChatResponse:
-        state = self._graph.invoke({"question": question, "reference_time": reference_time})
-        intent = state["interpretation"].intent
+    def ask(
+        self, question: str, reference_time: datetime, previous: Interpretation | None = None
+    ) -> ChatResponse:
+        """previous : ce qui a été compris à la réponse précédente de la conversation, s'il y en a une."""
+        state = self._graph.invoke(
+            {"question": question, "reference_time": reference_time, "previous": previous}
+        )
+        interpretation = state["interpretation"]
+        intent = interpretation.intent
         common = {"question": question, "intent": intent}
         if "clarification" in state or intent == ChatIntent.UNSUPPORTED:
             return ChatResponse(
@@ -204,6 +220,14 @@ class ChatOrchestrator:
                 summary=state.get("clarification", UNSUPPORTED_MESSAGE),
                 summary_source=SummarySource.DETERMINISTIC, reference_time=reference_time,
             )
+        if intent in INHERITABLE_INTENTS:
+            common["context"] = interpretation.model_copy(update={"alert_id": None})
+        if state["follow_up"] != FollowUp.NONE:
+            period = state.get("period")
+            note = describe(
+                interpretation, previous, question, self._configs, period.label if period else None
+            )
+            common["follow_up"] = note or None
         result = state.get("agent_result")
         if result is not None:
             return ChatResponse(
@@ -219,6 +243,36 @@ class ChatOrchestrator:
 
     def _interpret(self, state: ChatState) -> ChatState:
         """Une réponse non conforme, ou un TMS inconnu, conduit à un refus, jamais à une supposition."""
+        question, previous = state["question"], state.get("previous")
+        follow_up = classify_follow_up(question, previous, self._configs)
+        if follow_up == FollowUp.SAME_SUBJECT and not needs_llm_for_period(question):
+            # « et chez Beta ? » : le sujet est repris, le code suffit et le LLM n'est pas appelé.
+            interpretation = complete(question, Interpretation(intent=previous.intent), previous, self._configs)
+            return {
+                "interpretation": interpretation, "follow_up": follow_up,
+                **self._resolve_period(state, interpretation),
+            }
+        interpretation = self._classify(state)
+        if interpretation.intent == ChatIntent.UNSUPPORTED:
+            return {"interpretation": interpretation, "follow_up": FollowUp.NONE}
+        if follow_up == FollowUp.SAME_SUBJECT:
+            # Le LLM n'a servi qu'à lire les dates : le sujet reste celui de la question précédente.
+            interpretation = interpretation.model_copy(update={"intent": previous.intent})
+        if follow_up != FollowUp.NONE:
+            interpretation = complete(question, interpretation, previous, self._configs)
+        if interpretation.intent == ChatIntent.EXPLAIN_ALERT:
+            cited = NUMBER_IN_QUESTION.findall(question)
+            if interpretation.alert_id is None or str(interpretation.alert_id) not in cited:
+                return {
+                    "interpretation": interpretation, "follow_up": follow_up,
+                    "clarification": ALERT_ID_MESSAGE,
+                }
+        return {
+            "interpretation": interpretation, "follow_up": follow_up,
+            **self._resolve_period(state, interpretation),
+        }
+
+    def _classify(self, state: ChatState) -> Interpretation:
         raw = self._llm.complete_json(
             build_interpreter_prompt(self._configs),
             f"Date du jour : {state['reference_time']:%Y-%m-%d}\nQuestion : {state['question']}",
@@ -228,12 +282,11 @@ class ChatOrchestrator:
         try:
             interpretation = Interpretation.model_validate(raw)
         except ValidationError:
-            interpretation = Interpretation(intent=ChatIntent.UNSUPPORTED)
+            return Interpretation(intent=ChatIntent.UNSUPPORTED)
         known_ids = {config.id for config in self._configs}
         if interpretation.tms_id is not None and interpretation.tms_id not in known_ids:
-            interpretation = Interpretation(intent=ChatIntent.UNSUPPORTED)
-        if interpretation.intent == ChatIntent.UNSUPPORTED:
-            return {"interpretation": interpretation}
+            return Interpretation(intent=ChatIntent.UNSUPPORTED)
+        return interpretation
         if interpretation.intent == ChatIntent.EXPLAIN_ALERT:
             cited = NUMBER_IN_QUESTION.findall(state["question"])
             if interpretation.alert_id is None or str(interpretation.alert_id) not in cited:
@@ -246,21 +299,23 @@ class ChatOrchestrator:
         question = state["question"]
         timezone = get_settings().business_timezone
         interpretation = correct_relative_period(question, interpretation)
+        # La période corrigée par le code est aussi celle que garde le contexte de la conversation.
+        corrected = {"interpretation": interpretation}
         if interpretation.intent in CURRENT_ONLY_INTENTS:
             if mentions_period(question) and interpretation.period != PeriodKind.TODAY:
-                return {"clarification": CURRENT_ONLY_MESSAGE}
-            return {"period": None}
+                return {**corrected, "clarification": CURRENT_ONLY_MESSAGE}
+            return {**corrected, "period": None}
         if interpretation.period == PeriodKind.NONE:
             if mentions_period(question):
-                return {"clarification": CLARIFY_PERIOD_MESSAGE}
-            return {"period": None}
+                return {**corrected, "clarification": CLARIFY_PERIOD_MESSAGE}
+            return {**corrected, "period": None}
         try:
             period = resolve_period(interpretation, state["reference_time"], timezone)
         except InvalidPeriodError:
-            return {"clarification": CLARIFY_PERIOD_MESSAGE}
+            return {**corrected, "clarification": CLARIFY_PERIOD_MESSAGE}
         if not period_matches_question(question, period, timezone):
-            return {"clarification": CLARIFY_PERIOD_MESSAGE}
-        return {"period": period}
+            return {**corrected, "clarification": CLARIFY_PERIOD_MESSAGE}
+        return {**corrected, "period": period}
 
     @staticmethod
     def _route(state: ChatState) -> str:

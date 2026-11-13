@@ -145,6 +145,9 @@ class ChatResponse(BaseModel):
     draft_message: str | None = None
     suggested_recipient: str | None = None
     sources: list[DocumentSource] = []
+    # Ce que le code a compris, gardé avec la réponse pour comprendre une question de suite.
+    context: Interpretation | None = None
+    follow_up: str | None = None
 
 
 class ConversationRead(BaseModel):

@@ -309,6 +309,8 @@ def render_answer(answer: dict[str, Any]) -> None:
     if not answer["answered"]:
         st.info(answer["summary"])
         return
+    if answer.get("follow_up"):
+        st.caption(answer["follow_up"])
     st.write(answer["summary"])
     if answer["summary_source"] == "llm":
         st.caption("Résumé généré par l'IA. Consultez les détails ci-dessous en cas de doute.")
